@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: user-service
-          image: ***REMOVED***.dkr.ecr.ap-south-1.amazonaws.com/eks-dev-user-service:latest
+          image: user-service:latest
           ports:
             - containerPort: 3000
           resources:

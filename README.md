@@ -295,28 +295,89 @@ echo "User Service: $USER_SERVICE_ECR:latest"
 echo "Order Service: $ORDER_SERVICE_ECR:latest"
 ```
 
-### Step 5: Deploy Kubernetes Manifests
+### Step 5: Deploy Kubernetes Manifests with Kustomize
 
-Apply Kubernetes deployments, services, and Ingress:
+This project uses **Kustomize** for environment-agnostic manifest management. Images and environment-specific values are injected at deployment time.
+
+**Prerequisites:**
+- `kubectl` with kustomize support (v1.14+)
+- `envsubst` command available in your shell
+- AWS CLI configured with valid credentials
+
+**Deployment:**
 
 ```bash
-# Create namespace
-kubectl create namespace microservices
+# Navigate to project root
+cd eks-nodejs-microservices
 
-# Apply user-service deployment and service
-kubectl apply -f k8s/base/user-service/ -n microservices
+# Set environment variables
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export AWS_REGION="ap-south-1"
+export IMAGE_TAG="latest"
+export ENVIRONMENT="dev"  # dev, staging, or prod
 
-# Apply order-service deployment and service
-kubectl apply -f k8s/base/order-service/ -n microservices
+# Option 1: Use the automated deploy script
+chmod +x deploy.sh
+./deploy.sh
 
-# Apply Ingress (ALB-backed)
-kubectl apply -f k8s/ingress.yaml -n microservices
+# Option 2: Manual Kustomize deployment
+kubectl kustomize k8s/overlays/dev | envsubst | kubectl apply -f -
 
 # Verify deployments
 kubectl get deployments -n microservices
+kubectl get pods -n microservices
 kubectl get services -n microservices
-kubectl get ingress -n microservices
 ```
+
+**Directory Structure:**
+```
+k8s/
+├── base/                          # Base configurations (shared)
+│   ├── order-service/
+│   │   ├── deployment.yaml       # Generic image name (no account ID)
+│   │   ├── service.yaml
+│   │   ├── kustomization.yaml
+│   │   └── resources/
+│   │       └── namespace.yaml
+│   ├── user-service/
+│   │   ├── deployment.yaml
+│   │   ├── service.yaml
+│   │   ├── kustomization.yaml
+│   │   └── resources/
+│   │       └── namespace.yaml
+│   └── ingress/
+│       ├── ingress.yaml
+│       └── kustomization.yaml
+└── overlays/                      # Environment-specific overrides
+    ├── dev/
+    │   ├── kustomization.yaml     # Replaces images with ECR URIs
+    │   └── configmap.yaml
+    ├── staging/
+    │   ├── kustomization.yaml
+    │   └── configmap.yaml
+    └── prod/
+        ├── kustomization.yaml
+        └── configmap.yaml
+```
+
+**How it works:**
+1. Base manifests contain generic image names (e.g., `order-service:latest`)
+2. Overlays replace images with ECR repository URIs using environment variables
+3. The deploy script exports `AWS_ACCOUNT_ID`, `AWS_REGION`, and `IMAGE_TAG`
+4. `envsubst` substitutes these values into Kustomize output
+5. `kubectl apply` deploys the final manifests
+
+**Example transformation:**
+```bash
+# Before (base/order-service/deployment.yaml):
+image: order-service:latest
+
+# After (dev overlay with environment variables):
+image: ${AWS_ACCOUNT_ID}.dkr.ecr.ap-south-1.amazonaws.com/eks-dev-order-service:latest
+# Example: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/eks-dev-order-service:latest
+```
+
+
 
 ### Step 6: Access the Application
 
@@ -337,12 +398,73 @@ curl http://$ALB_DNS/orders
 
 ---
 
+## Security & Best Practices
+
+### No Hardcoded Secrets
+
+This project follows production-grade security practices:
+
+✅ **What we do:**
+- Use **Kustomize overlays** for environment-specific configurations
+- Store only generic base manifests in version control
+- Pass environment variables at deployment time
+- Use **AWS IAM authentication** for all AWS API calls
+- Leverage **IRSA** (IAM Roles for Service Accounts) for pod permissions
+- Never commit account IDs, ARNs, or sensitive credentials
+
+❌ **What we avoid:**
+- Hardcoded AWS Account IDs
+- Hardcoded IAM user ARNs
+- Plaintext database passwords
+- API keys in manifests
+- Terraform `.tfvars` files (use `.tfvars.example` for templates)
+
+### Files NOT to commit:
+```
+terraform.tfvars          # AWS credentials, account IDs
+.env                      # Environment variables
+.env.local               # Local overrides
+aws-credentials          # AWS CLI credentials
+*.pem, *.key            # SSH keys
+```
+
+These are already in `.gitignore`.
+
+### Deployment Best Practices:
+
+```bash
+# ✅ CORRECT: Set variables before deployment
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export AWS_REGION="ap-south-1"
+export IMAGE_TAG="latest"
+./deploy.sh
+
+# ❌ WRONG: Committing hardcoded values
+# Don't do this:
+# image: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/eks-dev-order-service:latest
+```
+
+### Creating Multiple Environments:
+
+```bash
+# Create staging overlay (copy from dev)
+mkdir -p k8s/overlays/staging
+cp k8s/overlays/dev/* k8s/overlays/staging/
+
+# Update kustomization.yaml for staging
+# - Different image names or tags
+# - Different replica counts
+# - Different resource limits
+```
+
+---
+
 ## How to Run (High-Level)
 
 1. **Provision infrastructure** – Terraform creates VPC, EKS, ECR, and IAM
 2. **Build Docker images** – Create container images for microservices
 3. **Push to ECR** – Authenticate with AWS ECR and upload images
-4. **Deploy to Kubernetes** – Apply manifests for deployments, services, and Ingress
+4. **Deploy to Kubernetes** – Use Kustomize with environment variables for secure deployments
 5. **Access services** – Use ALB DNS to reach the microservices
 
 ---

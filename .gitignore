@@ -7,6 +7,8 @@
 **/*.tfplan
 crash.log
 .terraform.lock.hcl.backup
+terraform.tfvars
+!terraform.tfvars.example
 
 # -------------------------
 # Node.js
@@ -14,6 +16,21 @@ crash.log
 **/node_modules/
 **/npm-debug.log
 **/.env
+.env.local
+.env.*
+
+# -------------------------
+# Kustomize Generated
+# -------------------------
+k8s/generated/
+**/kustomization_generated.yaml
+
+# -------------------------
+# AWS & Sensitive Data
+# -------------------------
+aws-credentials
+*.pem
+*.key
 
 # -------------------------
 # OS / IDE

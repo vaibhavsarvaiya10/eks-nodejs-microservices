@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base configurations for all environments
+namespace: microservices
+
+commonLabels:
+  managed-by: kustomize
+
+# Common resources
+resources:
+  - resources/namespace.yaml
+  - deployment.yaml
+  - service.yaml
+
+# Image replacement - will be overridden by overlays
+images:
+  - name: user-service
+    newName: user-service  # Will be set by overlay
+    newTag: latest

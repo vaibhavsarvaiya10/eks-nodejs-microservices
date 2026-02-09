@@ -1,0 +1,39 @@
+# Kustomization for dev environment
+# Applies overlays specific to development
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference base configurations
+bases:
+  - ../../base/order-service
+  - ../../base/user-service
+  - ../../base/ingress
+
+# Environment-specific resources
+resources:
+  - configmap.yaml
+
+# Replace image URLs with ECR repositories
+# These values are populated via environment variables during deployment
+images:
+  - name: order-service
+    newName: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/eks-dev-order-service
+    newTag: ${IMAGE_TAG}
+  - name: user-service
+    newName: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/eks-dev-user-service
+    newTag: ${IMAGE_TAG}
+
+# Common labels for dev environment
+commonLabels:
+  environment: dev
+  managed-by: kustomize
+
+# ConfigMap generator for environment variables
+configMapGenerator:
+  - name: microservices-config
+    behavior: create
+    literals:
+      - ENVIRONMENT=dev
+      - LOG_LEVEL=debug
+      - USER_SERVICE_URL=http://user-service.microservices.svc.cluster.local

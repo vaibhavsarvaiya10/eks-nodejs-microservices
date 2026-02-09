@@ -1,0 +1,7 @@
+# Example terraform variables file
+# Copy this to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control
+
+region = "ap-south-1"
+# cluster_name = "eks-dev-cluster"
+# cluster_version = "1.29"
