@@ -39,13 +39,13 @@ The goal of this project is not just to make things work, but to show *how they 
                 ┌──────────────────┴──────────────────┐
                 │                                     │
         ┌───────▼────────┐                   ┌────────▼───────┐
-        │  user-service   │                   │  order-service  │
-        │  (Node.js API)  │◀─────Service─────▶│  (Node.js API)  │
+        │  user-service  │                   │  order-service │
+        │  (Node.js API) │◀─────Service─────▶│  (Node.js API) │
         └───────┬────────┘                   └────────┬───────┘
                 │                                     │
         ┌───────▼────────┐                   ┌────────▼───────┐
-        │ Kubernetes SVC  │                   │ Kubernetes SVC  │
-        │   ClusterIP     │                   │   ClusterIP     │
+        │ Kubernetes SVC │                   │ Kubernetes SVC │
+        │   ClusterIP    │                   │   ClusterIP    │
         └────────────────┘                   └────────────────┘
 
         ─────────────────────────────────────────────────────────
